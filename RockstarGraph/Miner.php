@@ -1,6 +1,7 @@
 <?php
 
 require_once 'WikiDigger.php';
+require_once 'Link.php';
 
 class RockstarGraph_Miner
 {
@@ -13,47 +14,45 @@ class RockstarGraph_Miner
   // Redo MongoGraph as well (not a lot of work there though)
 
   /**
+   * Breadth-first crawl of Wikipedia bands.
+   * 
    * @param int $limit
    * @param string $startingPoint url
-   * @return RockstarGraph_MongoGraph
+   * @return RockstarGraph_Link[]
    */
-  public function mine($limit, $startingPoint)
+  public function mine($limit, $startingPoint, $debugging = FALSE)
   {
-    $mongoGraph = new RockstarGraph_MongoGraph();
     $digger = new RockstarGraph_WikiDigger();
     $nodeCount = 0;
-    if($initialStage == NULL)
-      $initialStage = self::BAND_STAGE;
     $bands = array();
     $bands[] = $startingPoint;
+    $bandsPointer = 0;
 
-    while($mongoGraph->getBandCount() < $limit) {
-      $rockstars = array();
-      foreach($bands as $band) {
-        try {
-          $bandMembers = $digger->findBandMembers($band);
-          $rockstars = array_unique(array_merge($rockstars, $bandMembers));
-        }
-        catch(WikiException $e) {
-          // don't die, just don't add to rockstars
+    while(count($bands) < $limit && $bandsPointer < count($bands)) {
+      $band = $bands[$bandsPointer];
+      try {
+        $associatedActs = $digger->findAssociatedActs($band);
+      }
+      catch(RockstarGraph_WikiException $e) {
+        // don't do anything, just stay alive
+      }
+
+      $associatedActs = array_unique($associatedActs);
+      $previousBands = array_slice($bands, 0, $bandsPointer + 1);
+      $associatedActs = array_diff($associatedActs, $previousBands);
+      foreach($associatedActs as $associatedAct) {
+        $links[] = new RockstarGraph_Link($band, $associatedAct);
+        if(!in_array($associatedAct, $bands)) {
+          $bands[] = $associatedAct;
+          if($debugging)
+            file_put_contents('php://stderr',
+                              sprintf("%s => %s\n", $band, $associatedAct));
         }
       }
-      $rockstars = $mongoGraph->filterExistingRockstars($rockstars);
-      $mongoGraph->addRockstars($rockstars);
 
-      foreach($rockstars as $rockstar) {
-        try {
-          $associatedActs = $digger->findAssociatedActs($rockstar);
-          $bands = array_unique(array_merge($bands, $associatedActs));
-        }
-        catch(WikiException $e) {
-          // don't die, just don't add to bands
-        }
-      }
-      $bands = $mongoGraph->filterExistingBands($bands);
-      $mongoGraph->addBands();
+      $bandsPointer ++;
     }
 
-    return $mongoGraph;
+    return $links;
   }
 }

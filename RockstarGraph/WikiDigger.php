@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Currently mostly scraping wikipedia.  TODO: Use Mediawiki API for
+ * everything (exportnowrap).  (if the documentation gets updated to
+ * actually reflect the current interface...)
+ */
 class RockstarGraph_WikiDigger
 {
   public function __construct()
@@ -11,48 +16,16 @@ class RockstarGraph_WikiDigger
    * @param string $band url
    * @return string[]
    */
-  public function findBandMembers($band)
+  public function findAssociatedActs($band)
   {
+    $associatedActs = array();
+
     $xml = $this->getXML($band);
     $infoBox = $xml->xpath('//table[@class="infobox vcard"]');
 
     if(!isset($infoBox[0]))
-      throw new RockstarGraph_WikiException('No info box on page: ' . $band);
-    $infoBox = $infoBox[0];
-
-    $membersBox = $infoBox->
-      xpath('.//th[text() = "Members"]/parent::*/following-sibling::*[1]');
-    if(isset($membersBox[0])) {
-      $currentMembers = $this->membersFromBox($membersBox[0]);
-      $members = $currentMembers;
-    }
-    else
-      $members = array();
-
-    $pastMembersBox = $infoBox->
-      xpath('.//th[text() = "Past members"]/parent::*/following-sibling::*[1]');
-    if(isset($pastMembersBox[0])) {
-      $pastMembers = $this->membersFromBox($pastMembersBox[0]);
-      $members = array_unique(array_merge($members, $pastMembers));
-    }
-      
-    return $members;
-  }
-
-  /**
-   * @param string $rockstar url
-   * @return string[]
-   */
-  public function findAssociatedActs($rockstar)
-  {
-    $associatedActs = array();
-
-    $xml = $this->getXML($rockstar);
-    $infoBox = $xml->xpath('//table[@class="infobox vcard"]');
-
-    if(!isset($infoBox[0]))
       throw new RockstarGraph_WikiException(
-        'No info box on page: ' . $rockstar);
+        'No info box on page: ' . $band);
     $infoBox = $infoBox[0];
 
     $associatedActsElements = $infoBox->
@@ -60,6 +33,7 @@ class RockstarGraph_WikiDigger
             'a[starts-with(@href, "/wiki/")]');
     foreach($associatedActsElements as $element) {
       $name = $this->nameFromElementHref($element);
+      $name = $this->getCanonicalName($name);
       $associatedActs[] = $name;
     }
 
@@ -67,23 +41,33 @@ class RockstarGraph_WikiDigger
   }
 
   /**
-   * @param SimpleXMLElement $box
-   * @return string[]
+   * @param string $name
+   * @return string
    */
-  private function membersFromBox(SimpleXMLElement $box)
+  public function getCanonicalName($name)
   {
-    $members = array();
+    $curl = curl_init(
+      'http://en.wikipedia.org/w/api.php?action=query&rvprop=content&' .
+      'format=xml&redirects&titles=' . $name);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($curl, CURLOPT_USERAGENT, 'RockstarGraph; ' .
+                'andreas@jansson.me.uk');
+    $data = curl_exec($curl);
+    curl_close($curl);
 
-    $membersElements =  $box->xpath('.//a[starts-with(@href, "/wiki/")]');
+    if(!$data)
+      throw new RockstarGraph_WikiException('Failed to get canonical name');
 
-    foreach($membersElements as $element) {
-      $name = $this->nameFromElementHref($element);
+    $xml = new SimpleXMLElement($data);
+    $redirect = $xml->xpath('//redirects/r[1]');
+    if(empty($redirect))
+      return $name;
 
-      if(!empty($name))
-        $members[] = $name;
-    }
+    $redirect = $redirect[0];
+    $to = $redirect['to'];
+    $to = str_replace(' ', '_', $to); // hacky
 
-    return $members;
+    return $to;
   }
 
   /**
@@ -106,6 +90,11 @@ class RockstarGraph_WikiDigger
     $url = 'http://en.wikipedia.org/wiki/' . urlencode($url);
     $curl = curl_init($url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($curl, CURLOPT_USERAGENT,
+                "If you update your API documentation I'll use the API. " .
+                "exportnowrap doesn't work as expected (http://www." .
+                "mediawiki.org/wiki/API:Query#Exporting_pages). " .
+                "andreas@jansson.me.uk");
     $data = curl_exec($curl);
     $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     curl_close($curl);
