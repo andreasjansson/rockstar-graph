@@ -2,8 +2,9 @@
 
 class RockstarGraph_Link
 {
-  public $band1;
-  public $band2;
+  // shortened to save space when dumped as json
+  public $b1;
+  public $b2;
 
   /**
    * @param string $band1
@@ -11,7 +12,7 @@ class RockstarGraph_Link
    */
   public function __construct($band1, $band2)
   {
-    $this->band1 = $band1;
-    $this->band2 = $band2;
+    $this->b1 = $band1;
+    $this->b2 = $band2;
   }
 }

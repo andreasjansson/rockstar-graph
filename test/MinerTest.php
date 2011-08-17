@@ -9,8 +9,8 @@ class WikiDiggerTest extends PHPUnit_Framework_TestCase
   {
     $miner = new RockstarGraph_Miner();
     $links = $miner->mine(100, 'Nirvana_(band)', TRUE);
-    $this->assertEquals('Fecal_Matter_(band)', $links[0]->band2);
-    $this->assertEquals('Foo_Fighters', $links[1]->band2);
+    $this->assertEquals('Fecal_Matter_(band)', $links[0]->b2);
+    $this->assertEquals('Foo_Fighters', $links[1]->b2);
   }
 }
 
