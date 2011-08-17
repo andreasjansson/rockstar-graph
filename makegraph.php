@@ -1,5 +1,7 @@
 <?php
 
+ini_set('memory_limit', '512M');
+
 require_once 'RockstarGraph/Miner.php';
 
 $options = getopt('l::s::v::', array('limit::', 'start::', 'verbose::'));

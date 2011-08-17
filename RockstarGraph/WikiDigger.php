@@ -90,6 +90,7 @@ class RockstarGraph_WikiDigger
     $url = 'http://en.wikipedia.org/wiki/' . urlencode($url);
     $curl = curl_init($url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($curl, CURLOPT_ENCODING, 'gzip');
     curl_setopt($curl, CURLOPT_USERAGENT,
                 "If you update your API documentation I'll use the API. " .
                 "exportnowrap doesn't work as expected (http://www." .

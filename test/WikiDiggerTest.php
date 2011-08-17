@@ -5,6 +5,14 @@ require_once '../RockstarGraph/WikiDigger.php';
 
 class WikiDiggerTest extends PHPUnit_Framework_TestCase
 {
+  public function testMichaelJackson()
+  {
+    // for some reason the michael jackson article is coming
+    // back gzipped, but no other articles are.
+    $digger = new RockstarGraph_WikiDigger();
+    $acts = $digger->findAssociatedActs('Michael_Jackson');
+  }
+
   public function testFindAssociatedActs()
   {
     $digger = new RockstarGraph_WikiDigger();
